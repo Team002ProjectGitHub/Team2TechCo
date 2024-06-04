@@ -1,0 +1,3 @@
+﻿<Project>
+  <Import Project="../build/Team2TechCo.props" />
+</Project>
