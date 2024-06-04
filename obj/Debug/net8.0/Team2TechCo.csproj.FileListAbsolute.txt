@@ -136,3 +136,5 @@
 /Users/aiyasomosmacpro/Team2TechCo/obj/Debug/net8.0/Team2TechCo.pdb
 /Users/aiyasomosmacpro/Team2TechCo/obj/Debug/net8.0/Team2TechCo.genruntimeconfig.cache
 /Users/aiyasomosmacpro/Team2TechCo/obj/Debug/net8.0/ref/Team2TechCo.dll
+/Users/aiyasomosmacpro/Team2TechCo/bin/Debug/net8.0/deployment-config.json
+/Users/aiyasomosmacpro/Team2TechCo/obj/Debug/net8.0/Team2TechCo.sourcelink.json
