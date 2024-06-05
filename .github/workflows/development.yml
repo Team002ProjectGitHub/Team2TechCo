@@ -66,5 +66,5 @@ jobs:
         host: ${{ matrix.server.ip}}
         remote: ${{ matrix.server.path}}
         user: ${{ matrix.server.username}}
-        key: ${{ secrets.Second_Key}}
+        key: ${{ secrets.TEAM2_SECRET_KEY}}
         port: ${{ matrix.server.port}}
