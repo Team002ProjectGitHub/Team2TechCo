@@ -1,5 +1,5 @@
 name: GITHUB Actions Demo
-run-name: ${{github.actor}} is testing out Github Actions
+run-name: ${{github.actor}} is testing out Github Action
 on:
   push:
     branches:
@@ -66,5 +66,5 @@ jobs:
         host: ${{ matrix.server.ip}}
         remote: ${{ matrix.server.path}}
         user: ${{ matrix.server.username}}
-        key: ${{ secrets.TEAM2_SECRET_KEY}}
+        key: ${{ secrets.fifthkey}}
         port: ${{ matrix.server.port}}
