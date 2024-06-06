@@ -23,7 +23,6 @@ jobs:
       - name: build .net project
         run: dotnet build
 
-      
 
       - name: list overall files
         run: ls
@@ -59,10 +58,6 @@ jobs:
       - uses: actions/download-artifact@v3
         with:
           name: app-build
-
-      - name: create remote directory if not exists
-        run: |
-          ssh -i ${{ secrets.fifthkey }} -o StrictHostKeyChecking=no -p ${{ matrix.server.port }} ${{ matrix.server.username }}@${{ matrix.server.ip }} "sudo mkdir -p /var/www/html && sudo chown -R ${{ matrix.server.username }}:$ {{ matrix.server.username }} /var/www/html"
 
       - name: upload
         uses: nogsantos/scp-deploy@master
