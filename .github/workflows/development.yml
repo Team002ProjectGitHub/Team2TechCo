@@ -1,15 +1,17 @@
 name: GITHUB Actions Demo
-run-name: ${{github.actor}} is testing out Github Action
+run-name: ${{ github.actor }} is testing out Github Action
+
 on:
   push:
     branches:
       - main
+
 jobs:
   create-deployment-artifacts:
     name: create deployment artifacts
     runs-on: ubuntu-latest
-    outputs: 
-      deployment-matrix: ${{ steps.export-deployment-matrix.outputs.deployment-matrix}}
+    outputs:
+      deployment-matrix: ${{ steps.export-deployment-matrix.outputs.deployment-matrix }}
     steps:
       - run: echo "🎉 The job was automatically triggered by a ${{ github.event_name }} event."
       - run: echo "🐧 This job is now running on a ${{ runner.os }} server hosted by GitHub!"
@@ -20,19 +22,15 @@ jobs:
       - run: echo "🖥️ The workflow is now ready to test your code on the runner."
 
       - name: build .net project
-        run: |
-          dotnet build
-     
+        run: dotnet build
+
       - name: list overall files
         run: ls
-
-      - name: dotnet test
-        run: dotnet test
 
       - name: create deployment artifact
         env:
           GITHUB_SHA: ${{ github.sha }}
-        run:  tar -czf "${GITHUB_SHA}".tar.gz --exclude=*.git --exclude=node_modules  *
+        run: tar -czf "${GITHUB_SHA}".tar.gz --exclude=*.git --exclude=node_modules *
 
       - name: store artifact for deployment
         uses: actions/upload-artifact@v3
@@ -54,17 +52,22 @@ jobs:
     needs: create-deployment-artifacts
     strategy:
       matrix:
-        server: ${{ fromJson(needs.create-deployment-artifacts.outputs.deployment-matrix)}}
+        server: ${{ fromJson(needs.create-deployment-artifacts.outputs.deployment-matrix) }}
     steps:
-    - uses: actions/download-artifact@v3
-      with:
-        name: app-build
-    - name: upload artifact to server
-      uses: nogsantos/scp-deploy@master
-      with:
-        src: ${{ github.sha}}.tar.gz
-        host: ${{ matrix.server.ip}}
-        remote: ${{ matrix.server.path}}
-        user: ${{ matrix.server.username}}
-        key: ${{ secrets.fifthkey}}
-        port: ${{ matrix.server.port}}
+      - uses: actions/download-artifact@v3
+        with:
+          name: app-build
+
+      - name: create remote directory if not exists
+        run: |
+          ssh -i ${{ secrets.fifthkey }} -o StrictHostKeyChecking=no -p ${{ matrix.server.port }} ${{ matrix.server.username }}@${{ matrix.server.ip }} "sudo mkdir -p /var/www/html && sudo chown -R ${{ matrix.server.username }}:$ {{ matrix.server.username }} /var/www/html"
+
+      - name: upload
+        uses: nogsantos/scp-deploy@master
+        with:
+          src: ${{ github.sha }}.tar.gz
+          host: ${{ matrix.server.ip }}
+          remote: /var/www/html
+          user: ${{ matrix.server.username }}
+          key: ${{ secrets.fifthkey }}
+          port: ${{ matrix.server.port }}
