@@ -1,6 +1,5 @@
 name: GITHUB Actions Demo
-run-name: ${{ github.actor }} is testing out Github Action
-
+run-name: ${{github.actor}} is testing out Github Actions
 on:
   push:
     branches:
@@ -11,7 +10,7 @@ jobs:
     name: create deployment artifacts
     runs-on: ubuntu-latest
     outputs:
-      deployment-matrix: ${{ steps.export-deployment-matrix.outputs.deployment-matrix }}
+      deployment-matrix: ${{steps.export-deployment-matrix.outputs.deployment-matrix}}
     steps:
       - run: echo "🎉 The job was automatically triggered by a ${{ github.event_name }} event."
       - run: echo "🐧 This job is now running on a ${{ runner.os }} server hosted by GitHub!"
@@ -24,6 +23,8 @@ jobs:
       - name: build .net project
         run: dotnet build
 
+      
+
       - name: list overall files
         run: ls
 
@@ -31,6 +32,7 @@ jobs:
         env:
           GITHUB_SHA: ${{ github.sha }}
         run: tar -czf "${GITHUB_SHA}".tar.gz --exclude=*.git --exclude=node_modules *
+        
 
       - name: store artifact for deployment
         uses: actions/upload-artifact@v3
@@ -52,7 +54,7 @@ jobs:
     needs: create-deployment-artifacts
     strategy:
       matrix:
-        server: ${{ fromJson(needs.create-deployment-artifacts.outputs.deployment-matrix) }}
+        server: ${{fromJson(needs.create-deployment-artifacts.outputs.deployment-matrix)}}
     steps:
       - uses: actions/download-artifact@v3
         with:
