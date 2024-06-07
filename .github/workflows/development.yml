@@ -49,13 +49,13 @@ jobs:
           echo '{
             "servers": [
               {
-                "ip": "192.168.1.1",
-                "username": "user1",
+                "ip": "54.161.46.200",
+                "username": "server-1",
                 "port": "22"
               },
               {
-                "ip": "192.168.1.2",
-                "username": "user2",
+                "ip": "54.161.46.200",
+                "username": "server-1",
                 "port": "22"
               }
             ]
