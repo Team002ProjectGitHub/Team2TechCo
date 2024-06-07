@@ -3,7 +3,7 @@ run-name: ${{github.actor}} is testing out Github Actions
 on:
   push:
     branches:
-      - main
+      - Joel
 
 jobs:
   create-deployment-artifacts:
@@ -26,6 +26,9 @@ jobs:
 
       - name: list overall files
         run: ls
+
+      - name: Unit Test
+        run: dotnet test
 
       - name: create deployment artifact
         env:
