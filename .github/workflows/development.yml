@@ -3,68 +3,49 @@ run-name: ${{github.actor}} is testing out Github Actions
 on:
   push:
     branches:
-      - main
+      - Karami
 
 jobs:
-  create-deployment-artifacts:
-    name: create deployment artifacts
+  build:
     runs-on: ubuntu-latest
-    outputs:
-      deployment-matrix: ${{steps.export-deployment-matrix.outputs.deployment-matrix}}
+
     steps:
-      - run: echo "🎉 The job was automatically triggered by a ${{ github.event_name }} event."
-      - run: echo "🐧 This job is now running on a ${{ runner.os }} server hosted by GitHub!"
-      - run: echo "🔎 The name of your branch is ${{ github.ref }} and your repository is ${{ github.repository }}."
-      - name: Check out repository code
-        uses: actions/checkout@v3
-      - run: echo "💡 The ${{ github.repository }} repository has been cloned to the runner."
-      - run: echo "🖥️ The workflow is now ready to test your code on the runner."
+    - name: Checkout code
+      uses: actions/checkout@v3
 
-      - name: build .net project
-        run: dotnet build
+    - name: Setup .NET Core
+      uses: actions/setup-dotnet@v2
+      with:
+        dotnet-version: '3.1.x'
 
+    - name: Install dependencies
+      run: dotnet restore
 
-      - name: list overall files
-        run: ls
+    - name: Build
+      run: dotnet build --no-restore
 
-      - name: create deployment artifact
-        env:
-          GITHUB_SHA: ${{ github.sha }}
-        run: tar -czf "${GITHUB_SHA}".tar.gz --exclude=*.git --exclude=node_modules *
-        
+    - name: Test
+      run: dotnet test --no-build --verbosity normal
 
-      - name: store artifact for deployment
-        uses: actions/upload-artifact@v3
-        with:
-          name: app-build
-          path: ${{ github.sha }}.tar.gz
+    - name: Publish
+      run: dotnet publish -c Release -o out
 
-      - name: Export Deployment matrix
-        id: export-deployment-matrix
-        run: |
-          JSON="$(cat ./deployment-config.json)"
-          JSON="${JSON//'%'/'%25'}"
-          JSON="${JSON//$'\n'/'%0A'}"
-          JSON="${JSON//$'\r'/'%0D'}"
-          echo "::set-output name=deployment-matrix::$JSON"
+    - name: Upload artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: published-app
+        path: ./out
 
-  prepare-release-on-server:
+  deploy:
+    needs: build
     runs-on: ubuntu-latest
-    needs: create-deployment-artifacts
-    strategy:
-      matrix:
-        server: ${{fromJson(needs.create-deployment-artifacts.outputs.deployment-matrix)}}
     steps:
-      - uses: actions/download-artifact@v3
-        with:
-          name: app-build
+    - name: Download artifact
+      uses: actions/download-artifact@v2
+      with:
+        name: published-app
+        path: ./out
 
-      - name: upload
-        uses: nogsantos/scp-deploy@master
-        with:
-          src: ${{ github.sha }}.tar.gz
-          host: ${{ matrix.server.ip }}
-          remote: /var/www/html
-          user: ${{ matrix.server.username }}
-          key: ${{ secrets.fifthkey }}
-          port: ${{ matrix.server.port }}
+    - name: Deploy to server
+      run: |
+        scp -i ${{ secrets.fifthkey }} -r ./out/* user@server:/var/www/html
