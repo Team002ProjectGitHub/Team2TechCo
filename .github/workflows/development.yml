@@ -7,6 +7,10 @@ jobs:
   build:
     name: Build
     runs-on: ubuntu-latest
+
+    outputs:
+      deployment_matrix: ${{ steps.export-deployment-matrix.outputs.deployment_matrix }}
+    
     steps:
       - name: Print trigger information
         run: |
@@ -42,11 +46,11 @@ jobs:
       - name: Export Deployment matrix
         id: export-deployment-matrix
         run: |
-          JSON="$(cat ./deployment-config.json)"
+          JSON=$(cat ./deployment-config.json)
           JSON="${JSON//'%'/'%25'}"
           JSON="${JSON//$'\n'/'%0A'}"
           JSON="${JSON//$'\r'/'%0D'}"
-          echo "::set-output name=deployment-matrix::$JSON"
+          echo "::set-output name=deployment_matrix::$JSON"
 
   unit-tests:
     name: Run Unit Tests
@@ -54,10 +58,10 @@ jobs:
     needs: build
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v2
 
       - name: Setup .NET Core
-        uses: actions/setup-dotnet@v3
+        uses: actions/setup-dotnet@v2
         with:
           dotnet-version: '8.0.x' # Specify your .NET version
 
@@ -73,10 +77,10 @@ jobs:
     needs: unit-tests
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v2
 
       - name: Setup .NET Core
-        uses: actions/setup-dotnet@v3
+        uses: actions/setup-dotnet@v2
         with:
           dotnet-version: '8.0.x' # Specify your .NET version
 
@@ -92,7 +96,7 @@ jobs:
     needs: integration-tests
     strategy:
       matrix:
-        server: ${{ fromJson(needs.build.outputs.deployment-matrix) }}
+        server: ${{ fromJson(needs.build.outputs.deployment_matrix) }}
     steps:
       - uses: actions/download-artifact@v3
         with:
