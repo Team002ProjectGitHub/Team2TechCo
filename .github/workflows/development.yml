@@ -46,11 +46,22 @@ jobs:
       - name: Export Deployment matrix
         id: export-deployment-matrix
         run: |
-          JSON=$(cat ./deployment-config.json)
-          JSON="${JSON//'%'/'%25'}"
-          JSON="${JSON//$'\n'/'%0A'}"
-          JSON="${JSON//$'\r'/'%0D'}"
-          echo "::set-output name=deployment_matrix::$JSON"
+          echo '{
+            "servers": [
+              {
+                "ip": "192.168.1.1",
+                "username": "user1",
+                "port": "22"
+              },
+              {
+                "ip": "192.168.1.2",
+                "username": "user2",
+                "port": "22"
+              }
+            ]
+          }' > deployment-matrix.json
+          cat deployment-matrix.json
+          echo "::set-output name=deployment_matrix::$(cat deployment-matrix.json)"
 
   unit-tests:
     name: Run Unit Tests
@@ -96,7 +107,7 @@ jobs:
     needs: integration-tests
     strategy:
       matrix:
-        server: ${{ fromJson(needs.build.outputs.deployment_matrix) }}
+        server: ${{ fromJson(needs.build.outputs.deployment_matrix).servers }}
     steps:
       - uses: actions/download-artifact@v3
         with:
