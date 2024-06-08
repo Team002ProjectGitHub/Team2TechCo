@@ -1,4 +1,5 @@
 name: CI/CD Pipeline
+
 on:
   push:
     branches:
@@ -109,17 +110,24 @@ jobs:
         with:
           name: app-build
 
-      - name: Prepare SSH key
-        run: |
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > key.pem
-          chmod 600 key.pem
-
       - name: Upload artifact to server
         env:
           SERVER: ${{ matrix.server }}
         run: |
-          scp -i key.pem -o StrictHostKeyChecking=no ${{ github.sha }}.tar.gz ubuntu@${SERVER}:/var/www/html/
+          scp -i ${{ secrets.fifthkey }} -o StrictHostKeyChecking=no ${{ github.sha }}.tar.gz ubuntu@${{ matrix.server.ip }}:/var/www/html/
 
-      - name: Clean up SSH key
+      - name: Extract artifact on server
         run: |
-          rm -f key.pem
+          ssh -i ${{ secrets.fifthkey }} -o StrictHostKeyChecking=no ubuntu@${{ matrix.server.ip }} "tar -xzf /var/www/html/${{ github.sha }}.tar.gz -C /var/www/html/"
+
+      - name: Install dependencies on server
+        run: |
+          ssh -i ${{ secrets.fifthkey }} -o StrictHostKeyChecking=no ubuntu@${{ matrix.server.ip }} "cd /var/www/html && dotnet restore"
+
+      - name: Run database migrations on server
+        run: |
+          ssh -i ${{ secrets.fifthkey }} -o StrictHostKeyChecking=no ubuntu@${{ matrix.server.ip }} "cd /var/www/html && dotnet ef database update"
+
+      - name: Restart service on server
+        run: |
+          ssh -i ${{ secrets.fifthkey }} -o StrictHostKeyChecking=no ubuntu@${{ matrix.server.ip }} "sudo systemctl restart my-service"
