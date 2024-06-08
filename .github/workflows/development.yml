@@ -1,3 +1,4 @@
+name: CI/CD Pipeline
 on:
   push:
     branches:
@@ -98,18 +99,27 @@ jobs:
     needs: integration-tests
     strategy:
       matrix:
-        server: ${{ fromJson(needs.build.outputs['export-deployment-matrix'].deployment-matrix).servers }}
+        server: ${{ fromJson(needs.integration-tests.outputs['export-deployment-matrix'].deployment-matrix).servers }}
     steps:
-      - uses: actions/download-artifact@v3
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Download artifact
+        uses: actions/download-artifact@v3
         with:
           name: app-build
 
-      - name: Upload
-        uses: nogsantos/scp-deploy@master
-        with:
-          src: ${{ github.sha }}.tar.gz
-          host: ${{ matrix.server.ip }}
-          remote: /var/www/html
-          user: ${{ matrix.server.username }}
-          key: ${{ secrets.fifthkey }}
-          port: ${{ matrix.server.port }}
+      - name: Prepare SSH key
+        run: |
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > key.pem
+          chmod 600 key.pem
+
+      - name: Upload artifact to server
+        env:
+          SERVER: ${{ matrix.server }}
+        run: |
+          scp -i key.pem -o StrictHostKeyChecking=no ${{ github.sha }}.tar.gz ubuntu@${SERVER}:/var/www/html/
+
+      - name: Clean up SSH key
+        run: |
+          rm -f key.pem
