@@ -1,5 +1,3 @@
-name: GITHUB Actions Demo
-run-name: ${{github.actor}} is testing out Github Actions
 on:
   push:
     branches:
@@ -40,6 +38,10 @@ jobs:
         with:
           name: app-build
           path: ${{ github.sha }}.tar.gz
+
+      - name: Debug Deployment Config
+        run: |
+          cat ./deployment-config.json
 
       - name: Export Deployment matrix
         id: export-deployment-matrix
@@ -96,7 +98,7 @@ jobs:
     needs: integration-tests
     strategy:
       matrix:
-        server: ${{ fromJson(needs.build.outputs['export-deployment-matrix'].deployment-matrix) }}
+        server: ${{ fromJson(needs.build.outputs['export-deployment-matrix'].deployment-matrix).servers }}
     steps:
       - uses: actions/download-artifact@v3
         with:
@@ -111,40 +113,3 @@ jobs:
           user: ${{ matrix.server.username }}
           key: ${{ secrets.fifthkey }}
           port: ${{ matrix.server.port }}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
