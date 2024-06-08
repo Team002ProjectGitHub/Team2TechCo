@@ -150,11 +150,11 @@
         },
         {
           "name": "Run database migrations on server",
-          "run": "ssh -i ./path/to/private_key.pem -o StrictHostKeyChecking=no ubuntu@${{ matrix.server.ip }} \"cd /var/www/html && dotnet ef database update\""
+          "run": "ssh -i secrets.fifthkey -o StrictHostKeyChecking=no ubuntu@${{ matrix.server.ip }} \"cd /var/www/html && dotnet ef database update\""
         },
         {
           "name": "Restart service on server",
-          "run": "ssh -i ./path/to/private_key.pem -o StrictHostKeyChecking=no ubuntu@${{ matrix.server.ip }} \"sudo systemctl restart my-service\""
+          "run": "ssh -i secrets.fifthkey -o StrictHostKeyChecking=no ubuntu@${{ matrix.server.ip }} \"sudo systemctl restart my-service\""
         }
       ]
     }
