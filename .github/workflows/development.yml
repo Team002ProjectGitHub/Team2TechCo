@@ -93,9 +93,7 @@ jobs:
   prepare-release-on-server:
     name: Prepare Release on Server
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        server: ${{ fromJson(needs.build.outputs.deployment_matrix) }}
+    needs: integration-tests
     steps:
       - uses: actions/download-artifact@v3
         with:
