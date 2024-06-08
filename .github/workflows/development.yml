@@ -116,6 +116,11 @@
       "name": "Prepare Release on Server",
       "runs-on": "ubuntu-latest",
       "needs": "integration-tests",
+      "strategy": {
+        "matrix": {
+          "server": "${{ fromJson(needs['integration-tests'].outputs['export-deployment-matrix']).servers }}"
+        }
+      },
       "steps": [
         {
           "name": "Checkout code",
@@ -133,23 +138,23 @@
           "env": {
             "SERVER": "${{ matrix.server }}"
           },
-          "run": "scp -i ${{ secrets.fifthkey }} -o StrictHostKeyChecking=no ${{ github.sha }}.tar.gz ubuntu@${{ matrix.server.ip }}:/var/www/html/"
+          "run": "scp -i secrets.fifthkey -o StrictHostKeyChecking=no ${{ github.sha }}.tar.gz ubuntu@${{ matrix.server.ip }}:/var/www/html/"
         },
         {
           "name": "Extract artifact on server",
-          "run": "ssh -i ${{ secrets.fifthkey }} -o StrictHostKeyChecking=no ubuntu@${{ matrix.server.ip }} \"tar -xzf /var/www/html/${{ github.sha }}.tar.gz -C /var/www/html/\""
+          "run": "ssh -i secrets.fifthkey -o StrictHostKeyChecking=no ubuntu@${{ matrix.server.ip }} \"tar -xzf /var/www/html/${{ github.sha }}.tar.gz -C /var/www/html/\""
         },
         {
           "name": "Install dependencies on server",
-          "run": "ssh -i ${{ secrets.fifthkey }} -o StrictHostKeyChecking=no ubuntu@${{ matrix.server.ip }} \"cd /var/www/html && dotnet restore\""
+          "run": "ssh -i secrets.fifthkey -o StrictHostKeyChecking=no ubuntu@${{ matrix.server.ip }} \"cd /var/www/html && dotnet restore\""
         },
         {
           "name": "Run database migrations on server",
-          "run": "ssh -i ${{ secrets.fifthkey }} -o StrictHostKeyChecking=no ubuntu@${{ matrix.server.ip }} \"cd /var/www/html && dotnet ef database update\""
+          "run": "ssh -i ./path/to/private_key.pem -o StrictHostKeyChecking=no ubuntu@${{ matrix.server.ip }} \"cd /var/www/html && dotnet ef database update\""
         },
         {
           "name": "Restart service on server",
-          "run": "ssh -i ${{ secrets.fifthkey }} -o StrictHostKeyChecking=no ubuntu@${{ matrix.server.ip }} \"sudo systemctl restart my-service\""
+          "run": "ssh -i ./path/to/private_key.pem -o StrictHostKeyChecking=no ubuntu@${{ matrix.server.ip }} \"sudo systemctl restart my-service\""
         }
       ]
     }
