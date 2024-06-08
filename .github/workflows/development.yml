@@ -1,40 +1,39 @@
+name: GITHUB Actions Demo
+run-name: ${{github.actor}} is testing out Github Actions
 on:
   push:
     branches:
       - Joel
 
 jobs:
-  build:
-    name: Build
+  create-deployment-artifacts:
+    name: create deployment artifacts
     runs-on: ubuntu-latest
-
+    outputs:
+      deployment-matrix: ${{steps.export-deployment-matrix.outputs.deployment-matrix}}
     steps:
-      - name: Print trigger information
-        run: |
-          echo "🎉 The job was automatically triggered by a ${{ github.event_name }} event."
-          echo "🐧 This job is now running on a ${{ runner.os }} server hosted by GitHub!"
-          echo "🔎 The name of your branch is ${{ github.ref }} and your repository is ${{ github.repository }}."
-      
+      - run: echo "🎉 The job was automatically triggered by a ${{ github.event_name }} event."
+      - run: echo "🐧 This job is now running on a ${{ runner.os }} server hosted by GitHub!"
+      - run: echo "🔎 The name of your branch is ${{ github.ref }} and your repository is ${{ github.repository }}."
       - name: Check out repository code
         uses: actions/checkout@v3
+      - run: echo "💡 The ${{ github.repository }} repository has been cloned to the runner."
+      - run: echo "🖥️ The workflow is now ready to test your code on the runner."
 
-      - name: Setup .NET Core
-        uses: actions/setup-dotnet@v2
-        with:
-          dotnet-version: '8.0.x' # Specify your .NET version
+      - name: build .net project
+        run: dotnet build
 
-      - name: Restore dependencies
-        run: dotnet restore
 
-      - name: Build
-        run: dotnet build --no-restore --configuration Release
+      - name: list overall files
+        run: ls
 
-      - name: Create deployment artifact
+      - name: create deployment artifact
         env:
           GITHUB_SHA: ${{ github.sha }}
-        run: tar -czf "${GITHUB_SHA}.tar.gz" --exclude=*.git --exclude=node_modules *
+        run: tar -czf "${GITHUB_SHA}".tar.gz --exclude=*.git --exclude=node_modules *
+        
 
-      - name: Store artifact for deployment
+      - name: store artifact for deployment
         uses: actions/upload-artifact@v3
         with:
           name: app-build
@@ -43,109 +42,29 @@ jobs:
       - name: Export Deployment matrix
         id: export-deployment-matrix
         run: |
-          echo '{
-            "servers": [
-              {
-                "ip": "192.168.1.1",
-                "username": "user1",
-                "port": "22"
-              },
-              {
-                "ip": "192.168.1.2",
-                "username": "user2",
-                "port": "22"
-              }
-            ]
-          }' > deployment-matrix.json
-          cat deployment-matrix.json
-          echo "::set-output name=deployment_matrix::$(cat deployment-matrix.json)"
-          echo $(cat deployment-matrix.json) > $GITHUB_WORKSPACE/deployment-matrix.json
-
-      - name: Upload deployment matrix
-        uses: actions/upload-artifact@v3
-        with:
-          name: deployment-matrix
-          path: deployment-matrix.json
-
-  unit-tests:
-    name: Run Unit Tests
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
-
-      - name: Setup .NET Core
-        uses: actions/setup-dotnet@v2
-        with:
-          dotnet-version: '8.0.x' # Specify your .NET version
-
-      - name: Restore dependencies
-        run: dotnet restore
-
-      - name: Run unit tests
-        run: dotnet test --no-restore --configuration Release --filter TestCategory=Unit
-
-  integration-tests:
-    name: Run Integration Tests
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
-
-      - name: Setup .NET Core
-        uses: actions/setup-dotnet@v2
-        with:
-          dotnet-version: '8.0.x' # Specify your .NET version
-
-      - name: Restore dependencies
-        run: dotnet restore
-
-      - name: Run integration tests
-        run: dotnet test --no-restore --configuration Release --filter TestCategory=Integration
-
-      - name: Download deployment matrix
-        uses: actions/download-artifact@v3
-        with:
-          name: deployment-matrix
-          path: deployment-matrix.json
-
-      - name: Upload integration test results
-        uses: actions/upload-artifact@v3
-        with:
-          name: integration-test-completed
-          path: integration-test-completed.txt
-
-      - name: Mark integration test completion
-        run: echo "Integration test completed" > integration-test-completed.txt
+          JSON="$(cat ./deployment-config.json)"
+          JSON="${JSON//'%'/'%25'}"
+          JSON="${JSON//$'\n'/'%0A'}"
+          JSON="${JSON//$'\r'/'%0D'}"
+          echo "::set-output name=deployment-matrix::$JSON"
 
   prepare-release-on-server:
-    name: Prepare Release on Server
     runs-on: ubuntu-latest
+    needs: create-deployment-artifacts
+    strategy:
+      matrix:
+        server: ${{fromJson(needs.create-deployment-artifacts.outputs.deployment-matrix)}}
     steps:
-      - name: Wait for integration tests
-        uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v3
         with:
-          name: integration-test-completed
-          path: integration-test-completed.txt
+          name: app-build
 
-      - name: Download deployment matrix
-        uses: actions/download-artifact@v3
-        with:
-          name: deployment-matrix
-          path: deployment-matrix.json
-
-      - name: Upload
+      - name: upload
         uses: nogsantos/scp-deploy@master
         with:
           src: ${{ github.sha }}.tar.gz
-          host: ${{ fromJson(steps.get-matrix.outputs.deployment_matrix).servers[0].ip }}
+          host: ${{ matrix.server.ip }}
           remote: /var/www/html
-          user: ${{ fromJson(steps.get-matrix.outputs.deployment_matrix).servers[0].username }}
+          user: ${{ matrix.server.username }}
           key: ${{ secrets.fifthkey }}
-          port: ${{ fromJson(steps.get-matrix.outputs.deployment_matrix).servers[0].port }}
-
-      - name: Get deployment matrix
-        id: get-matrix
-        run: |
-          cat deployment-matrix.json
-          echo "::set-output name=deployment_matrix::$(cat deployment-matrix.json)"
+          port: ${{ matrix.server.port }}
