@@ -7,45 +7,144 @@ on:
 
 jobs:
   build:
+    name: Build
     runs-on: ubuntu-latest
-
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
+      - name: Print trigger information
+        run: |
+          echo "🎉 The job was automatically triggered by a ${{ github.event_name }} event."
+          echo "🐧 This job is now running on a ${{ runner.os }} server hosted by GitHub!"
+          echo "🔎 The name of your branch is ${{ github.ref }} and your repository is ${{ github.repository }}."
+      
+      - name: Check out repository code
+        uses: actions/checkout@v3
 
-    - name: Setup .NET Core
-      uses: actions/setup-dotnet@v2
-      with:
-        dotnet-version: '3.1.x'
+      - name: Setup .NET Core
+        uses: actions/setup-dotnet@v2
+        with:
+          dotnet-version: '8.0.x' # Specify your .NET version
 
-    - name: Install dependencies
-      run: dotnet restore
+      - name: Restore dependencies
+        run: dotnet restore
 
-    - name: Build
-      run: dotnet build --no-restore
+      - name: Build
+        run: dotnet build --no-restore --configuration Release
 
-    - name: Test
-      run: dotnet test --no-build --verbosity normal
+      - name: Create deployment artifact
+        env:
+          GITHUB_SHA: ${{ github.sha }}
+        run: tar -czf "${GITHUB_SHA}.tar.gz" --exclude=*.git --exclude=node_modules *
 
-    - name: Publish
-      run: dotnet publish -c Release -o out
+      - name: Store artifact for deployment
+        uses: actions/upload-artifact@v3
+        with:
+          name: app-build
+          path: ${{ github.sha }}.tar.gz
 
-    - name: Upload artifact
-      uses: actions/upload-artifact@v2
-      with:
-        name: published-app
-        path: ./out
+      - name: Export Deployment matrix
+        id: export-deployment-matrix
+        run: |
+          JSON=$(cat ./deployment-config.json)
+          echo "Deployment JSON: $JSON"  # Debug line to output JSON
+          JSON="${JSON//'%'/'%25'}"
+          JSON="${JSON//$'\n'/'%0A'}"
+          JSON="${JSON//$'\r'/'%0D'}"
+          echo "::set-output name=deployment-matrix::$JSON"
+        shell: bash
 
-  deploy:
+  unit-tests:
+    name: Run Unit Tests
+    runs-on: ubuntu-latest
     needs: build
-    runs-on: ubuntu-latest
     steps:
-    - name: Download artifact
-      uses: actions/download-artifact@v2
-      with:
-        name: published-app
-        path: ./out
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-    - name: Deploy to server
-      run: |
-        scp -i ${{ secrets.fifthkey }} -r ./out/* user@server:/var/www/html
+      - name: Setup .NET Core
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: '8.0.x' # Specify your .NET version
+
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Run unit tests
+        run: dotnet test --no-restore --configuration Release --filter TestCategory=Unit
+
+  integration-tests:
+    name: Run Integration Tests
+    runs-on: ubuntu-latest
+    needs: unit-tests
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup .NET Core
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: '8.0.x' # Specify your .NET version
+
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Run integration tests
+        run: dotnet test --no-restore --configuration Release --filter TestCategory=Integration
+
+  prepare-release-on-server:
+    name: Prepare Release on Server
+    runs-on: ubuntu-latest
+    needs: integration-tests
+    strategy:
+      matrix:
+        server: ${{ fromJson(needs.build.outputs['export-deployment-matrix'].deployment-matrix) }}
+    steps:
+      - uses: actions/download-artifact@v3
+        with:
+          name: app-build
+
+      - name: Upload
+        uses: nogsantos/scp-deploy@master
+        with:
+          src: ${{ github.sha }}.tar.gz
+          host: ${{ matrix.server.ip }}
+          remote: /var/www/html
+          user: ${{ matrix.server.username }}
+          key: ${{ secrets.fifthkey }}
+          port: ${{ matrix.server.port }}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
