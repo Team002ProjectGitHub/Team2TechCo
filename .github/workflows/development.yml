@@ -1,3 +1,4 @@
+
 name: CI/CD Pipeline
 run-name: ${{ github.actor }} is testing out GitHub Actions
 on:
@@ -98,7 +99,7 @@ jobs:
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_ID }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
@@ -111,7 +112,7 @@ jobs:
           name: app-build
 
       - name: Upload artifact to S3 bucket
-        run: aws s3 cp ${{ github.sha }}.tar.gz s3://your-bucket-name/
+        run: aws s3 cp ${{ github.sha }}.tar.gz s3://ourteambucket/
 
       - name: Deploy to EC2
         run: |
