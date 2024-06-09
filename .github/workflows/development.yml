@@ -115,8 +115,6 @@ jobs:
 
       - name: Deploy to EC2
         run: |
-          start-instances
-
           INSTANCE_ID="i-0a3bde90e39bc6d03"
           BUCKET_NAME="ourteambucket"
           KEY_PAIR="fifthkey"
