@@ -1,5 +1,5 @@
 name: CI/CD Pipeline
-run-name: ${{github.actor}} is testing out Github Actions
+run-name: ${{ github.actor }} is testing out GitHub Actions
 on:
   push:
     branches:
@@ -91,12 +91,9 @@ jobs:
         run: dotnet test --no-restore --configuration Release --filter TestCategory=Integration
 
   prepare-release-on-server:
-    name: Prepare Release on Server
+    name: Prepare Release on AWS Server
     runs-on: ubuntu-latest
     needs: integration-tests
-    strategy:
-      matrix:
-        server: ${{ fromJson(needs['integration-tests'].outputs['export-deployment-matrix']).servers }}
     steps:
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v2
@@ -116,17 +113,26 @@ jobs:
       - name: Upload artifact to S3 bucket
         run: aws s3 cp ${{ github.sha }}.tar.gz s3://your-bucket-name/
 
-      - name: Deploy artifact from S3 to server
-        run: aws s3 cp s3://your-bucket-name/${{ github.sha }}.tar.gz .
+      - name: Deploy to EC2
+        run: |
+          # Replace with your instance ID and S3 bucket name
+          INSTANCE_ID="i-0a3bde90e39bc6d03"
+          BUCKET_NAME="ourteambucket"
+          KEY_PAIR="fifthkey"
+          SSH_USER="ubuntu"
 
-      - name: Extract artifact on server
-        run: tar -xzf ${{ github.sha }}.tar.gz -C /var/www/html/
+          # Get the instance's public IP
+          INSTANCE_PUBLIC_IP=$(aws ec2 describe-instances --instance-ids $INSTANCE_ID --query "Reservations[0].Instances[0].PublicIpAddress" --output text)
 
-      - name: Install dependencies on server
-        run: cd /var/www/html && dotnet restore
+          # Copy the artifact from S3 to the EC2 instance
+          aws s3 cp s3://$BUCKET_NAME/${{ github.sha }}.tar.gz /tmp/${{ github.sha }}.tar.gz
+          scp -i $KEY_PAIR -o StrictHostKeyChecking=no /tmp/${{ github.sha }}.tar.gz $SSH_USER@$INSTANCE_PUBLIC_IP:/home/$SSH_USER/
 
-      - name: Run database migrations on server
-        run: cd /var/www/html && dotnet ef database update
-
-      - name: Restart service on server
-        run: sudo systemctl restart my-service
+          # Connect to the EC2 instance, extract the artifact, and deploy
+          ssh -i $KEY_PAIR -o StrictHostKeyChecking=no $SSH_USER@$INSTANCE_PUBLIC_IP << EOF
+            tar -xzf /home/$SSH_USER/${{ github.sha }}.tar.gz -C /var/www/html/
+            cd /var/www/html
+            dotnet restore
+            dotnet ef database update
+            sudo systemctl restart my-service
+          EOF
