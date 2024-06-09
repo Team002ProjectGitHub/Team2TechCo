@@ -1,3 +1,5 @@
+name: CI/CD Pipeline
+run-name: ${{ github.actor }} is testing out GitHub Actions
 on:
   push:
     branches:
@@ -5,58 +7,129 @@ on:
 
 jobs:
   build:
+    name: Build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - name: Fetch unshallow
-        run: git fetch --prune --tags --unshallow
-      - name: Install GitVersion
-        uses: gittools/actions/gitversion/setup@v0.9.7
-        with:
-          versionSpec: '5.x'
-      - name: Determine Version
-        id: gitversion
-        uses: gittools/actions/gitversion/execute@v0.9.7
-      - name: Setup dotnet
-        uses: actions/setup-dotnet@v3
+      - name: Print trigger information
+        run: |
+          echo "🎉 The job was automatically triggered by a ${{ github.event_name }} event."
+          echo "🐧 This job is now running on a ${{ runner.os }} server hosted by GitHub!"
+          echo "🔎 The name of your branch is ${{ github.ref }} and your repository is ${{ github.repository }}."
+      
+      - name: Check out repository code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET Core
+        uses: actions/setup-dotnet@v2
         with:
           dotnet-version: '8.0.x'
-      - name: Install dependencies
+
+      - name: Restore dependencies
         run: dotnet restore
+
       - name: Build
-        run: dotnet build
-      - name: Run Unit Tests
-        run: dotnet test --filter Category=Unit --no-restore --verbosity normal
-      - name: Copy Unit Test Results
-        run: mkdir TestResults; cp test/**/TestResults/*.Unit.Tests.trx TestResults/
-        shell: bash
-      - name: Start containers
-        run: docker-compose -f "docker-compose.yml" up -d --build
+        run: dotnet build --no-restore --configuration Release
+
+      - name: Create deployment artifact
         env:
-          VERSION: ${{ steps.gitversion.outputs.nuGetVersion }}
-      - name: Wait for docker containers to setup
-        run: sleep 30s
-        shell: bash
-      - name: Run Integration Tests
-        run: dotnet test --filter Category=Integration --no-restore --verbosity normal
-        env:
-          BASE_URL: http://localhost:5200
-      - name: Copy Integration Test Results
-        run: cp test/**/TestResults/*.Integration.Tests.trx TestResults/
-        shell: bash
-      - name: Test Report
-        uses: dorny/test-reporter@v1
-        if: success() || failure()
+          GITHUB_SHA: ${{ github.sha }}
+        run: tar -czf "${GITHUB_SHA}.tar.gz" --exclude=*.git --exclude=node_modules *
+
+      - name: Store artifact for deployment
+        uses: actions/upload-artifact@v4
         with:
-          name: Test Results
-          path: TestResults/*.trx
-          reporter: dotnet-trx
-      - name: Push to ECR
-        if: github.ref == 'refs/heads/main'
-        id: ecr
-        uses: jwalton/gh-ecr-push@v1
+          name: app-build
+          path: ${{ github.sha }}.tar.gz
+
+      - name: Debug Deployment Config
+        run: cat ./deployment-config.json
+
+      - name: Export Deployment matrix
+        id: export-deployment-matrix
+        run: |
+          JSON=$(cat ./deployment-config.json)
+          echo "Deployment JSON: $JSON"
+          echo "::set-output name=deployment-matrix::$JSON"
+        shell: bash
+
+  unit-tests:
+    name: Run Unit Tests
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET Core
+        uses: actions/setup-dotnet@v4
         with:
-          access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          secret-access-key: ${{ secrets.FIFTHKEY}}
-          region: us-east-1
-          image: githubactionsdemo.api:${{ steps.gitversion.outputs.nuGetVersion }}
+          dotnet-version: '8.0.x'
+
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Run unit tests
+        run: dotnet test --no-restore --configuration Release --filter TestCategory=Unit
+
+  integration-tests:
+    name: Run Integration Tests
+    runs-on: ubuntu-latest
+    needs: unit-tests
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET Core
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Run integration tests
+        run: dotnet test --no-restore --configuration Release --filter TestCategory=Integration
+
+  prepare-release-on-server:
+    name: Prepare Release on AWS Server
+    runs-on: ubuntu-latest
+    needs: integration-tests
+    steps:
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: app-build
+
+      - name: Upload artifact to S3 bucket
+        run: aws s3 cp ${{ github.sha }}.tar.gz s3://ourteambucket/
+
+      - name: Deploy to EC2
+        run: |
+          # Replace with your instance ID and S3 bucket name
+          INSTANCE_ID="i-0a3bde90e39bc6d03"
+          BUCKET_NAME="ourteambucket"
+          KEY_PAIR="fifthkey"
+          SSH_USER="ubuntu"
+          # Get the instance's public IP
+          INSTANCE_PUBLIC_IP=$(aws ec2 describe-instances --instance-ids $INSTANCE_ID --query "Reservations[0].Instances[0].PublicIpAddress" --output text)
+          # Copy the artifact from S3 to the EC2 instance
+          aws s3 cp s3://$BUCKET_NAME/${{ github.sha }}.tar.gz /tmp/${{ github.sha }}.tar.gz
+          scp -i $KEY_PAIR -o StrictHostKeyChecking=no /tmp/${{ github.sha }}.tar.gz $SSH_USER@$INSTANCE_PUBLIC_IP:/home/$SSH_USER/
+          # Connect to the EC2 instance, extract the artifact, and deploy
+          ssh -i $KEY_PAIR -o StrictHostKeyChecking=no $SSH_USER@$INSTANCE_PUBLIC_IP << EOF
+            tar -xzf /home/$SSH_USER/${{ github.sha }}.tar.gz -C /var/www/html/
+            cd /var/www/html
+            dotnet restore
+            dotnet ef database update
+            sudo systemctl restart my-service
+          EOF
