@@ -1,94 +1,64 @@
+name: Build, Test and Push
+
 on:
   push:
     branches:
       - Joel
 
 jobs:
-  create-deployment-artifacts:
-    name: Create Deployment Artifacts
+  build:
     runs-on: ubuntu-latest
-    outputs:
-      deployment_matrix: ${{ steps.export_deployment_matrix.outputs.deployment_matrix }}
     steps:
-      - run: echo "🎉 The job was automatically triggered by a ${{ github.event_name }} event."
-      - run: echo "🐧 This job is now running on a ${{ runner.os }} server hosted by GitHub!"
-      - run: echo "🔎 The name of your branch is ${{ github.ref }} and your repository is ${{ github.repository }}."
-      - name: Check out repository code
-        uses: actions/checkout@v3
-      - run: echo "💡 The ${{ github.repository }} repository has been cloned to the runner."
-      - run: echo "🖥️ The workflow is now ready to test your code on the runner."
-      - name: Build .NET Project
+      - uses: actions/checkout@v3
+      - name: Fetch unshallow
+        run: git fetch --prune --tags --unshallow
+      - name: Install GitVersion
+        uses: gittools/actions/gitversion/setup@v0.9.7
+        with:
+          versionSpec: '5.x'
+      - name: Determine Version
+        id: gitversion
+        uses: gittools/actions/gitversion/execute@v0.9.7
+      - name: Setup dotnet
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: '8.0.x'
+      - name: Install dependencies
+        run: dotnet restore
+      - name: Build
         run: dotnet build
-      - name: List Overall Files
-        run: ls
-      - name: Create Deployment Artifact
-        env:
-          GITHUB_SHA: ${{ github.sha }}
-        run: tar -czf "${GITHUB_SHA}.tar.gz" --exclude=*.git --exclude=node_modules *
-      - name: Store Artifact for Deployment
-        uses: actions/upload-artifact@v3
-        with:
-          name: app-build
-          path: ${{ github.sha }}.tar.gz
-      - name: Export Deployment Matrix
-        id: export_deployment_matrix
-        run: |
-          JSON="$(cat ./deployment-config.json)"
-          JSON="${JSON//'%'/'%25'}"
-          JSON="${JSON//$'\n'/'%0A'}"
-          JSON="${JSON//$'\r'/'%0D'}"
-          echo "::set-output name=deployment_matrix::$JSON"
-
-  unit-tests:
-    name: Run Unit Tests
-    runs-on: ubuntu-latest
-    needs: create-deployment-artifacts
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v2
-      - name: Setup .NET Core
-        uses: actions/setup-dotnet@v2
-        with:
-          dotnet-version: '8.0.x' # Specify your .NET version
-      - name: Restore Dependencies
-        run: dotnet restore
       - name: Run Unit Tests
-        run: dotnet test --no-restore --configuration Release --filter TestCategory=Unit
-
-  integration-tests:
-    name: Run Integration Tests
-    runs-on: ubuntu-latest
-    needs: unit-tests
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v2
-      - name: Setup .NET Core
-        uses: actions/setup-dotnet@v2
-        with:
-          dotnet-version: '8.0.x' # Specify your .NET version
-      - name: Restore Dependencies
-        run: dotnet restore
+        run: dotnet test --filter Category=Unit --no-restore --verbosity normal
+      - name: Copy Unit Test Results
+        run: mkdir TestResults; cp test/**/TestResults/*.Unit.Tests.trx TestResults/
+        shell: bash
+      - name: Start containers
+        run: docker-compose -f "docker-compose.yml" up -d --build
+        env:
+          VERSION: ${{ steps.gitversion.outputs.nuGetVersion }}
+      - name: Wait for docker containers to setup
+        run: sleep 30s
+        shell: bash
       - name: Run Integration Tests
-        run: dotnet test --no-restore --configuration Release --filter TestCategory=Integration
-
-  prepare-release-on-server:
-    name: Prepare Release on Server
-    runs-on: ubuntu-latest
-    needs: [ integration-tests, create-deployment-artifacts ]
-    strategy:
-      matrix:
-        server: ${{ fromJson(needs.create-deployment-artifacts.outputs.deployment_matrix).servers }}
-    steps:
-      - name: Download Artifact
-        uses: actions/download-artifact@v3
+        run: dotnet test --filter Category=Integration --no-restore --verbosity normal
+        env:
+          BASE_URL: http://localhost:5200
+      - name: Copy Integration Test Results
+        run: cp test/**/TestResults/*.Integration.Tests.trx TestResults/
+        shell: bash
+      - name: Test Report
+        uses: dorny/test-reporter@v1
+        if: success() || failure()
         with:
-          name: app-build
-      - name: Upload
-        uses: nogsantos/scp-deploy@master
+          name: Test Results
+          path: TestResults/*.trx
+          reporter: dotnet-trx
+      - name: Push to ECR
+        if: github.ref == 'refs/heads/main'
+        id: ecr
+        uses: jwalton/gh-ecr-push@v1
         with:
-          src: ${{ github.sha }}.tar.gz
-          host: ${{ matrix.server.ip }}
-          remote: /var/www/html
-          user: ${{ matrix.server.username }}
-          key: ${{ secrets.fifthkey }}
-          port: ${{ matrix.server.port }}
+          access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          secret-access-key: ${{ secrets.FIFTHKEY}}
+          region: us-east-1
+          image: githubactionsdemo.api:${{ steps.gitversion.outputs.nuGetVersion }}
