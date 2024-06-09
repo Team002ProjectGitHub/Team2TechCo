@@ -115,18 +115,14 @@ jobs:
 
       - name: Deploy to EC2
         run: |
-          # Replace with your instance ID and S3 bucket name
           INSTANCE_ID="i-0a3bde90e39bc6d03"
-          BUCKET_NAME="ourteambucket"
-          KEY_PAIR="fifthkey"
-          SSH_USER="ubuntu"
-          # Get the instance's public IP
-          INSTANCE_PUBLIC_IP=$(aws ec2 describe-instances --instance-ids $INSTANCE_ID --query "Reservations[0].Instances[0].PublicIpAddress" --output text)
-          # Copy the artifact from S3 to the EC2 instance
-          aws s3 cp s3://$BUCKET_NAME/${{ github.sha }}.tar.gz /tmp/${{ github.sha }}.tar.gz
-          scp -i $KEY_PAIR -o StrictHostKeyChecking=no /tmp/${{ github.sha }}.tar.gz $SSH_USER@$INSTANCE_PUBLIC_IP:/home/$SSH_USER/
-          # Connect to the EC2 instance, extract the artifact, and deploy
-          ssh -i $KEY_PAIR -o StrictHostKeyChecking=no $SSH_USER@$INSTANCE_PUBLIC_IP << EOF
+            BUCKET_NAME="ourteambucket"
+            KEY_PAIR="fifthkey"
+            SSH_USER="ubuntu"
+            INSTANCE_PUBLIC_IP=$(aws ec2 S2AndEC2Permissions --instance-ids $INSTANCE_ID --query "Reservations[0].Instances[0].PublicIpAddress" --output text)
+            aws s3 cp s3://$BUCKET_NAME/${{ github.sha }}.tar.gz /tmp/${{ github.sha }}.tar.gz
+            scp -i $KEY_PAIR -o StrictHostKeyChecking=no /tmp/${{ github.sha }}.tar.gz $SSH_USER@$INSTANCE_PUBLIC_IP:/home/$SSH_USER/
+            ssh -i $KEY_PAIR -o StrictHostKeyChecking=no $SSH_USER@$INSTANCE_PUBLIC_IP << EOF
             tar -xzf /home/$SSH_USER/${{ github.sha }}.tar.gz -C /var/www/html/
             cd /var/www/html
             dotnet restore
