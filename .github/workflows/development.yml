@@ -98,16 +98,26 @@ jobs:
       - name: Extract deployment artifact
         run: tar -xzf ${{ github.sha }}.tar.gz
 
-      - name: Deploy to Elastic beanstalk
+      - name: Deploy to Elastic Beanstalk
         uses: einaregilsson/beanstalk-deploy@v22
         with:
           aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           application_name: Team002TechCO
           environment_name: Team002TechCO-env
-          existing_bucket_name: elasticbeanstalk-us-east-1-992382535730
-          region: us-east-1
+          version_label: new-version-$(date +%s)  # Generate a unique version label
+          aws_region: us-east-1
           wait_for_deployment: true
-          use_existing_version_if_available: true
+          deployment_package: 9face9160847e2128dee77f10ab4f58d603a4278.tar.gz  # Ensure this file exists 
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
           
           
