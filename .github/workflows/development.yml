@@ -106,11 +106,21 @@ jobs:
           application_name: Team002TechCO
           environment_name: Team002TechCO-env
           version_label: new-version-$(date +%s)  # Generate a unique version label
-          aws_region: us-east-1
+          region: us-east-1  # Correct parameter for the region
           wait_for_deployment: true
-          deployment_package: 9face9160847e2128dee77f10ab4f58d603a4278.tar.gz  # Ensure this file exists 
+          deployment_package: 9face9160847e2128dee77f10ab4f58d603a4278.tar.gz  # Ensure this file exists
+          use_existing_version_if_available: true  # Set to true to use the existing version if it exists
       
       
+      
+      
+      
+      
+      
+      
+      
+      
+            
       
       
       
