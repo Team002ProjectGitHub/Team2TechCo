@@ -111,6 +111,6 @@ jobs:
           environment_name: Team002TechCO-env
           existing_bucket_name: elasticbeanstalk-us-east-1-992382535730
           region: us-east-1
-          version_label: ${{ github.sha }} #this will generate an auto version label (number)
+          version_label: ${{ github.sha }} #this will generate an auto version label (number).
           
           deployment_package: deploy.zip
