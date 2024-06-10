@@ -8,25 +8,100 @@ on:
 
 jobs:
   build:
+    name: Build
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout code
+      - name: Print trigger information
+        run: |
+          echo "🎉 The job was automatically triggered by a ${{ github.event_name }} event."
+          echo "🐧 This job is now running on a ${{ runner.os }} server hosted by GitHub!"
+          echo "🔎 The name of your branch is ${{ github.ref }} and your repository is ${{ github.repository }}."
+
+      - name: Check out repository code
         uses: actions/checkout@v4
 
-      - name: Set up .NET Core
+      - name: Setup .NET Core
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '8.0.x'  # Adjust this to your required .NET version
+          dotnet-version: '8.0.x'
 
       - name: Install dependencies
         run: dotnet restore
 
-      - name: Build the project
+      - name: Build
         run: dotnet publish -c Release -o output
 
+        
+
+      - name: Create deployment artifact
+        run: |
+          mkdir -p deployment
+          dotnet publish -c Release -o deployment
+          tar -czf "${{ github.sha }}.tar.gz" -C deployment .
+
+      - name: Store artifact for deployment
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-build
+          path: ${{ github.sha }}.tar.gz
+
+  unit-tests:
+    name: Run Unit Tests
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET Core
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Run unit tests
+        run: dotnet test --no-restore --configuration Release --filter TestCategory=Unit
+
+  integration-tests:
+    name: Run Integration Tests
+    runs-on: ubuntu-latest
+    needs: unit-tests
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET Core
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Run integration tests
+        run: dotnet test --no-restore --configuration Release --filter TestCategory=Integration
+
+  prepare-release-on-server:
+    name: Prepare Release on AWS Server
+    runs-on: ubuntu-latest
+    needs: integration-tests
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: app-build
+          path: .
+
+      - name: Extract deployment artifact
+        run: tar -xzf ${{ github.sha }}.tar.gz
+
       - name: Archive project
-        run: tar -czf 9face9160847e2128dee77f10ab4f58d603a4278.tar.gz -C output .
+        run: tar -czf 9face9160847e2128dee77f10ab4f58d603a4278.tar.gz build/
 
       - name: Deploy to Elastic Beanstalk
         uses: einaregilsson/beanstalk-deploy@v22
@@ -35,28 +110,29 @@ jobs:
           aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           application_name: Team002TechCO
           environment_name: Team002TechCO-env
-          version_label: new-version-$(date +%s)
-          region: us-east-1
+          version_label: new-version-$(date +%s)  # Generate a unique version label
+          region: us-east-1  # Correct parameter for the region
           wait_for_deployment: true
-          deployment_package: 9face9160847e2128dee77f10ab4f58d603a4278.tar.gz
-          use_existing_version_if_available: true
-
-
-
-
-
-
-
-
-
-
-  
-
-
-
-
-
-
-
-
-
+          deployment_package: 9face9160847e2128dee77f10ab4f58d603a4278.tar.gz  # Ensure this file exists
+          use_existing_version_if_available: true  # Set to true to use the existing version if it exists
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+            
+      
+      
+      
+      
+      
+      
+      
+      
+          
+          
