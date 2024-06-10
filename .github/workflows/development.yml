@@ -25,13 +25,11 @@ jobs:
         with:
           dotnet-version: '8.0.x'
 
-      - name: Install dependencies
+      - name: Restore dependencies
         run: dotnet restore
 
       - name: Build
-        run: dotnet publish -c Release -o output
-
-        
+        run: dotnet build --no-restore --configuration Release
 
       - name: Create deployment artifact
         run: |
@@ -100,39 +98,16 @@ jobs:
       - name: Extract deployment artifact
         run: tar -xzf ${{ github.sha }}.tar.gz
 
-      - name: Archive project
-        run: tar -czf 9face9160847e2128dee77f10ab4f58d603a4278.tar.gz build/
-
-      - name: Deploy to Elastic Beanstalk
+      - name: Deploy to Elastic beanstalk
         uses: einaregilsson/beanstalk-deploy@v22
         with:
           aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           application_name: Team002TechCO
           environment_name: Team002TechCO-env
-          version_label: new-version-$(date +%s)  # Generate a unique version label
-          region: us-east-1  # Correct parameter for the region
+          existing_bucket_name: elasticbeanstalk-us-east-1-992382535730
+          region: us-east-1
           wait_for_deployment: true
-          deployment_package: 9face9160847e2128dee77f10ab4f58d603a4278.tar.gz  # Ensure this file exists
-          use_existing_version_if_available: true  # Set to true to use the existing version if it exists
-      
-      
-      
-      
-      
-      
-      
-      
-      
-      
-            
-      
-      
-      
-      
-      
-      
-      
-      
+          use_existing_version_if_available: true
           
           
