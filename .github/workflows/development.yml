@@ -96,8 +96,8 @@ jobs:
           name: app-build
           path: .
 
-      - name: Generate deployment package
-        run: unzip ${{ github.sha }}.tar.gz
+      - name: Extract deployment artifact
+        run: tar -xzf ${{ github.sha }}.tar.gz
 
       - name: Deploy to EB
         uses: einaregilsson/beanstalk-deploy@v22
@@ -108,5 +108,5 @@ jobs:
           environment_name: Team002TechCO-env
           existing_bucket_name: elasticbeanstalk-us-east-1-992382535730
           region: us-east-1
-          version_label: ${{ github.sha }} # This will generate an auto version label (number).
+          version_label: ${{ github.sha }}
           deployment_package: ${{ github.sha }}.tar.gz
