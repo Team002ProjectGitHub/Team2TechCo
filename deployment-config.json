@@ -1,7 +1,7 @@
 {
     "servers": [
       {
-        "ip": "54.161.46.200",
+        "ip": "107.23.195.101",
         "username": "ubuntu",
         "port": "22",
         "beforeHooks": "",
