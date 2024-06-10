@@ -64,7 +64,7 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
-
+          
       - name: Restore dependencies
         run: dotnet restore
 
@@ -101,7 +101,7 @@ jobs:
       - name: Generate deployment package
         run: zip -r deploy.zip . -x '*.git*'
 
-      - name: Deploy to EB
+      - name: Deploy to Elastic Beanstalk
         uses: einaregilsson/beanstalk-deploy@v22
 
         with:
@@ -112,5 +112,5 @@ jobs:
           existing_bucket_name: elasticbeanstalk-us-east-1-992382535730
           region: us-east-1
           version_label: ${{ github.sha }} #this will generate an auto version label (number).
-          
+
           deployment_package: deploy.zip
