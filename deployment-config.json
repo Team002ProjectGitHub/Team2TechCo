@@ -2,12 +2,21 @@
     "servers": [
       {
         "ip": "54.161.46.200",
-        "path": "var/www/html",
         "username": "ubuntu",
-        "port": 22
+        "port": "22",
+        "beforeHooks": "",
+        "afterhooks": "",
+        "path": "var/www/html"
       }
     ]
   }
+
+
+
+
+
+
+
 
 
 
