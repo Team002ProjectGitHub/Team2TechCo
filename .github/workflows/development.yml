@@ -32,24 +32,17 @@ jobs:
         run: dotnet build --no-restore --configuration Release
 
       - name: Create deployment artifact
-        run: tar -czf "${{ github.sha }}.tar.gz" --exclude=*.git --exclude=node_modules *
+        run: |
+          mkdir -p deployment
+          dotnet publish -c Release -o deployment
+          cd deployment
+          tar -czf "../${{ github.sha }}.tar.gz" *
 
       - name: Store artifact for deployment
         uses: actions/upload-artifact@v4
         with:
           name: app-build
           path: ${{ github.sha }}.tar.gz
-
-      - name: Debug Deployment Config
-        run: cat ./deployment-config.json
-
-      - name: Export Deployment matrix
-        id: export-deployment-matrix
-        run: |
-          JSON=$(cat ./deployment-config.json)
-          echo "Deployment JSON: $JSON"
-          echo "::set-output name=deployment-matrix::$JSON"
-        shell: bash
 
   unit-tests:
     name: Run Unit Tests
@@ -104,7 +97,7 @@ jobs:
           path: .
 
       - name: Generate deployment package
-        run: zip -r deploy.zip . -x '*.git*'
+        run: unzip ${{ github.sha }}.tar.gz
 
       - name: Deploy to EB
         uses: einaregilsson/beanstalk-deploy@v22
@@ -116,4 +109,4 @@ jobs:
           existing_bucket_name: elasticbeanstalk-us-east-1-992382535730
           region: us-east-1
           version_label: ${{ github.sha }} # This will generate an auto version label (number).
-          deployment_package: deploy.zip
+          deployment_package: ${{ github.sha }}.tar.gz
