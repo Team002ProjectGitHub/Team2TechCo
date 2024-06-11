@@ -26,9 +26,9 @@ jobs:
 
       - name: Restore dependencies
         run: dotnet restore
-
-      - name: Build
-        run: dotnet build --no-restore --configuration Release
+      
+      - name: Publish the application
+        run: dotnet publish --no-restore --configuration Release --output ./publish
 
       - name: Create deployment artifact
         env:
