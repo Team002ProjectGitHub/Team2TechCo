@@ -107,10 +107,10 @@ jobs:
         with:
           aws_access_key: ${{ secrets.ACCESS_KEY_ID }}
           aws_secret_key: ${{ secrets.SECRET_ACCESS_KEY }}
-          application_name: ${{ steps.export-deployment-matrix.outputs['deployment-matrix'] }}
-          environment_name: ${{ steps.export-deployment-matrix.outputs['deployment-matrix'] }}
-          existing_bucket_name: ${{ steps.export-deployment-matrix.outputs['deployment-matrix'] }}
+          application_name: TechUser_EB
+          environment_name: TechUserEB-env
+          existing_bucket_name: elasticbeanstalk-us-east-1-992382535730
           region: us-east-1
-          version_label: ${{ github.sha }} #this will generate an auto version label (number).
-          
+          version_label: ${{ github.sha }} #this will generate an auto version label (number)....
+
           deployment_package: deploy.zip
