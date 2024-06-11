@@ -105,7 +105,7 @@ jobs:
           aws_secret_key: ${{ secrets.SECRET_ACCESS_KEY }}
           application_name: TechUser_EB
           environment_name: TechUserEB-env
-          version_label: new-version-${{ github.sha }}  # Use GitHub SHA as a unique version label
+          version_label: new-version-${{ github.sha }}
           region: us-east-1
           wait_for_deployment: true
           deployment_package: ${{ github.sha }}.tar.gz
