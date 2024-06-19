@@ -100,7 +100,9 @@ jobs:
           path: artifacts
 
       - name: Extract deployment artifact
-        run: tar -xzf artifacts/${{ github.sha }}.tar.gz -C deployment
+        run: |
+          mkdir -p deployment
+          tar -xzf artifacts/${{ github.sha }}.tar.gz -C deployment
 
       - name: Install jq
         run: sudo apt-get install -y jq
