@@ -35,13 +35,13 @@ jobs:
         run: |
           mkdir -p deployment
           dotnet publish -c Release -o deployment
-          tar -czf "${{ github.sha }}.tar.gz" -C deployment .
+          tar -czf "deployment/${{ github.sha }}.tar.gz" -C deployment .
 
       - name: Store artifact for deployment
         uses: actions/upload-artifact@v4
         with:
           name: app-build
-          path: ${{ github.sha }}.tar.gz
+          path: deployment/${{ github.sha }}.tar.gz
 
   unit-tests:
     name: Run Unit Tests
@@ -93,10 +93,10 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: app-build
-          path: .
+          path: deployment
 
       - name: Extract deployment artifact
-        run: tar -xzf ${{ github.sha }}.tar.gz
+        run: tar -xzf deployment/${{ github.sha }}.tar.gz -C deployment
 
       - name: Install jq
         run: sudo apt-get install -y jq
@@ -104,7 +104,7 @@ jobs:
       - name: Read deployment config
         id: config
         run: |
-          DEPLOYMENT_CONFIG=$(cat deployment-config.json)
+          DEPLOYMENT_CONFIG=$(cat deployment.config.json)
           echo "APPLICATION_NAME=$(echo $DEPLOYMENT_CONFIG | jq -r '.application_name')" >> $GITHUB_ENV
           echo "ENVIRONMENT_NAME=$(echo $DEPLOYMENT_CONFIG | jq -r '.environment_name')" >> $GITHUB_ENV
           echo "VERSION_LABEL=$(echo $DEPLOYMENT_CONFIG | jq -r '.version_label')" >> $GITHUB_ENV
@@ -123,5 +123,5 @@ jobs:
           version_label: ${{ env.VERSION_LABEL }}
           region: ${{ env.REGION }}
           wait_for_deployment: ${{ env.WAIT_FOR_DEPLOYMENT }}
-          deployment_package: ${{ env.DEPLOYMENT_PACKAGE }}
+          deployment_package: deployment/${{ github.sha }}.tar.gz
           use_existing_version_if_available: ${{ env.USE_EXISTING_VERSION_IF_AVAILABLE }}
