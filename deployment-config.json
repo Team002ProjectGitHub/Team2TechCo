@@ -1,42 +1,10 @@
 {
-    "servers": [
-      {
-        "ip": "3.85.87.133",
-        "username": "ubuntu",
-        "port": "22",
-        "beforeHooks": "",
-        "afterhooks": "",
-        "path": "var/www/html"
-      }
-    ]
-  }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+  "application_name": "TeamTwo-UI-env",
+  "environment_name": "TeamTwo-UI-env",
+  "version_label": "new-version-20240619120903",
+  "region": "us-east-1",
+  "deployment_package": "0820a6bca200d0ec02a2eef933e8dac9527fe25d.tar.gz",
+  "wait_for_deployment": true,
+  "use_existing_version_if_available": true,
+  "s3_bucket": "elasticbeanstalk-us-east-1-992382535730"
+}

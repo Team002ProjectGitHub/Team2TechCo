@@ -98,19 +98,30 @@ jobs:
       - name: Extract deployment artifact
         run: tar -xzf ${{ github.sha }}.tar.gz
 
-      - name: Set up version label
-        id: vars
-        run: echo "VERSION_LABEL=new-version-$(date +%Y%m%d%H%M%S)" >> $GITHUB_ENV
+      - name: Install jq
+        run: sudo apt-get install -y jq
+
+      - name: Read deployment config
+        id: config
+        run: |
+          DEPLOYMENT_CONFIG=$(cat deployment.config.json)
+          echo "APPLICATION_NAME=$(echo $DEPLOYMENT_CONFIG | jq -r '.application_name')" >> $GITHUB_ENV
+          echo "ENVIRONMENT_NAME=$(echo $DEPLOYMENT_CONFIG | jq -r '.environment_name')" >> $GITHUB_ENV
+          echo "VERSION_LABEL=$(echo $DEPLOYMENT_CONFIG | jq -r '.version_label')" >> $GITHUB_ENV
+          echo "REGION=$(echo $DEPLOYMENT_CONFIG | jq -r '.region')" >> $GITHUB_ENV
+          echo "DEPLOYMENT_PACKAGE=$(echo $DEPLOYMENT_CONFIG | jq -r '.deployment_package')" >> $GITHUB_ENV
+          echo "WAIT_FOR_DEPLOYMENT=$(echo $DEPLOYMENT_CONFIG | jq -r '.wait_for_deployment')" >> $GITHUB_ENV
+          echo "USE_EXISTING_VERSION_IF_AVAILABLE=$(echo $DEPLOYMENT_CONFIG | jq -r '.use_existing_version_if_available')" >> $GITHUB_ENV
 
       - name: Deploy to Elastic Beanstalk
         uses: einaregilsson/beanstalk-deploy@v22
         with:
           aws_access_key: ${{ secrets.ACCESS_KEY_ID }}
           aws_secret_key: ${{ secrets.SECRET_ACCESS_KEY }}
-          application_name: TeamTwo-UI
-          environment_name: TeamTwo-UI-env
+          application_name: ${{ env.APPLICATION_NAME }}
+          environment_name: ${{ env.ENVIRONMENT_NAME }}
           version_label: ${{ env.VERSION_LABEL }}
-          region: us-east-1
-          wait_for_deployment: true
-          deployment_package: ${{ github.sha }}.tar.gz
-          use_existing_version_if_available: true
+          region: ${{ env.REGION }}
+          wait_for_deployment: ${{ env.WAIT_FOR_DEPLOYMENT }}
+          deployment_package: ${{ env.DEPLOYMENT_PACKAGE }}
+          use_existing_version_if_available: ${{ env.USE_EXISTING_VERSION_IF_AVAILABLE }}
