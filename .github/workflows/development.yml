@@ -37,13 +37,15 @@ jobs:
           dotnet publish -c Release -o deployment
 
       - name: Create deployment artifact
-        run: tar -czf "deployment/${{ github.sha }}.tar.gz" -C deployment .
+        run: |
+          mkdir -p artifacts
+          tar -czf "artifacts/${{ github.sha }}.tar.gz" -C deployment .
 
       - name: Store artifact for deployment
         uses: actions/upload-artifact@v4
         with:
           name: app-build
-          path: deployment/${{ github.sha }}.tar.gz
+          path: artifacts/${{ github.sha }}.tar.gz
 
   unit-tests:
     name: Run Unit Tests
@@ -95,10 +97,10 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: app-build
-          path: deployment
+          path: artifacts
 
       - name: Extract deployment artifact
-        run: tar -xzf deployment/${{ github.sha }}.tar.gz -C deployment
+        run: tar -xzf artifacts/${{ github.sha }}.tar.gz -C deployment
 
       - name: Install jq
         run: sudo apt-get install -y jq
@@ -125,5 +127,5 @@ jobs:
           version_label: ${{ env.VERSION_LABEL }}
           region: ${{ env.REGION }}
           wait_for_deployment: ${{ env.WAIT_FOR_DEPLOYMENT }}
-          deployment_package: deployment/${{ github.sha }}.tar.gz
+          deployment_package: artifacts/${{ github.sha }}.tar.gz
           use_existing_version_if_available: ${{ env.USE_EXISTING_VERSION_IF_AVAILABLE }}
