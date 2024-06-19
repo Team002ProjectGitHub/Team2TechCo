@@ -1,73 +1,119 @@
-name: GITHUB Actions Demo
-run-name: ${{github.actor}} is testing out Github Actions
+name: CI/CD Pipeline
+run-name: ${{ github.actor }} is testing out GitHub Actions
 on:
   push:
     branches:
       - Joel
 
 jobs:
-  create-deployment-artifacts:
-    name: create deployment artifacts
+  build:
+    name: Build
     runs-on: ubuntu-latest
-    outputs:
-      deployment-matrix: ${{steps.export-deployment-matrix.outputs.deployment-matrix}}
     steps:
-      - run: echo "🎉 The job was automatically triggered by a ${{ github.event_name }} event."
-      - run: echo "🐧 This job is now running on a ${{ runner.os }} server hosted by GitHub!"
-      - run: echo "🔎 The name of your branch is ${{ github.ref }} and your repository is ${{ github.repository }}."
+      - name: Print trigger information
+        run: |
+          echo "🎉 The job was automatically triggered by a ${{ github.event_name }} event."
+          echo "🐧 This job is now running on a ${{ runner.os }} server hosted by GitHub!"
+          echo "🔎 The name of your branch is ${{ github.ref }} and your repository is ${{ github.repository }}."
+      
       - name: Check out repository code
-        uses: actions/checkout@v3
-      - run: echo "💡 The ${{ github.repository }} repository has been cloned to the runner."
-      - run: echo "🖥️ The workflow is now ready to test your code on the runner."
+        uses: actions/checkout@v4
 
-      - name: build .net project
-        run: dotnet build
+      - name: Setup .NET Core
+        uses: actions/setup-dotnet@v2
+        with:
+          dotnet-version: '8.0.x'
 
+      - name: Restore dependencies
+        run: dotnet restore
+      
+      - name: Publish the application
+        run: dotnet publish --no-restore --configuration Release --output ./publish
 
-      - name: list overall files
-        run: ls
-
-      - name: Unit Test
-        run: dotnet test
-
-      - name: create deployment artifact
+      - name: Create deployment artifact
         env:
           GITHUB_SHA: ${{ github.sha }}
-        run: tar -czf "${GITHUB_SHA}".tar.gz --exclude=*.git --exclude=node_modules *
-        
+        run: |
+          mkdir -p artifact
+          cp -r ./publish/* artifact/
+          tar -czf "${GITHUB_SHA}.tar.gz" -C artifact .
 
-      - name: store artifact for deployment
-        uses: actions/upload-artifact@v3
+      - name: Store artifact for deployment
+        uses: actions/upload-artifact@v4
         with:
           name: app-build
           path: ${{ github.sha }}.tar.gz
 
+      - name: Debug Deployment Config
+        run: cat ./deployment-config.json
+
       - name: Export Deployment matrix
         id: export-deployment-matrix
         run: |
-          JSON="$(cat ./deployment-config.json)"
-          JSON="${JSON//'%'/'%25'}"
-          JSON="${JSON//$'\n'/'%0A'}"
-          JSON="${JSON//$'\r'/'%0D'}"
+          JSON=$(cat ./deployment-config.json)
+          echo "Deployment JSON: $JSON"
           echo "::set-output name=deployment-matrix::$JSON"
+        shell: bash
+
+  unit-tests:
+    name: Run Unit Tests
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET Core
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+          
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Run unit tests
+        run: dotnet test --no-restore --configuration Release --filter TestCategory=Unit
+
+  integration-tests:
+    name: Run Integration Tests
+    runs-on: ubuntu-latest
+    needs: unit-tests
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET Core
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Run integration tests
+        run: dotnet test --no-restore --configuration Release --filter TestCategory=Integration
 
   prepare-release-on-server:
+    name: Prepare Release on AWS Server
     runs-on: ubuntu-latest
-    needs: create-deployment-artifacts
-    strategy:
-      matrix:
-        server: ${{fromJson(needs.create-deployment-artifacts.outputs.deployment-matrix)}}
+    needs: integration-tests
     steps:
-      - uses: actions/download-artifact@v3
-        with:
-          name: app-build
+      - name: Checkout source code
+        uses: actions/checkout@v2
 
-      - name: upload
-        uses: nogsantos/scp-deploy@master
+      - name: Generate deployment package
+        run: zip -r deploy.zip ./
+
+      - name: Deploy to Elastic Beanstalk
+        uses: einaregilsson/beanstalk-deploy@v22
+
         with:
-          src: ${{ github.sha }}.tar.gz
-          host: ${{ matrix.server.ip }}
-          remote: /var/www/html
-          user: ${{ matrix.server.username }}
-          key: ${{ secrets.fifthkey }}
-          port: ${{ matrix.server.port }}
+          aws_access_key: ${{ secrets.ACCESS_KEY_ID }}
+          aws_secret_key: ${{ secrets.SECRET_ACCESS_KEY }}
+          application_name: TechUser_EB
+          environment_name: TechUserEB-env
+          existing_bucket_name: elasticbeanstalk-us-east-1-992382535730
+          region: us-east-1
+          version_label: ${{ github.sha }} #this will generate an auto version label (number)....
+
+          deployment_package: deploy.zip
