@@ -108,12 +108,15 @@ jobs:
       - name: Install jq
         run: sudo apt-get install -y jq
 
+      - name: Set up version label
+        id: vars
+        run: echo "VERSION_LABEL=new-version-$(date +%Y%m%d%H%M%S)" >> $GITHUB_ENV
+
       - name: Read deployment config
         run: |
           DEPLOYMENT_CONFIG=$(cat deployment-config.json)
           echo "APPLICATION_NAME=$(echo $DEPLOYMENT_CONFIG | jq -r '.application_name')" >> $GITHUB_ENV
           echo "ENVIRONMENT_NAME=$(echo $DEPLOYMENT_CONFIG | jq -r '.environment_name')" >> $GITHUB_ENV
-          echo "VERSION_LABEL=$(echo $DEPLOYMENT_CONFIG | jq -r '.version_label')" >> $GITHUB_ENV
           echo "REGION=$(echo $DEPLOYMENT_CONFIG | jq -r '.region')" >> $GITHUB_ENV
           echo "DEPLOYMENT_PACKAGE=$(echo $DEPLOYMENT_CONFIG | jq -r '.deployment_package')" >> $GITHUB_ENV
           echo "WAIT_FOR_DEPLOYMENT=$(echo $DEPLOYMENT_CONFIG | jq -r '.wait_for_deployment')" >> $GITHUB_ENV
