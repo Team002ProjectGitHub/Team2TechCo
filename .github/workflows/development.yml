@@ -108,8 +108,8 @@ jobs:
         uses: einaregilsson/beanstalk-deploy@v22
 
         with:
-          aws_access_key: ${{ secrets.aws_access_key }}
-          aws_secret_key: ${{ secrets.aws_secret_key }}
+          aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           application_name: TechUser_EB
           environment_name: TechUserEB-env
           existing_bucket_name: elasticbeanstalk-us-east-1-992382535730
