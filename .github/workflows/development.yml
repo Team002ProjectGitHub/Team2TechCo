@@ -110,7 +110,7 @@ jobs:
       - name: Read deployment config
         id: config
         run: |
-          DEPLOYMENT_CONFIG=$(cat deployment.config.json)
+          DEPLOYMENT_CONFIG=$(cat deployment-config.json)
           echo "APPLICATION_NAME=$(echo $DEPLOYMENT_CONFIG | jq -r '.application_name')" >> $GITHUB_ENV
           echo "ENVIRONMENT_NAME=$(echo $DEPLOYMENT_CONFIG | jq -r '.environment_name')" >> $GITHUB_ENV
           echo "VERSION_LABEL=$(echo $DEPLOYMENT_CONFIG | jq -r '.version_label')" >> $GITHUB_ENV
