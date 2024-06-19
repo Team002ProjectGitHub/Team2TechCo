@@ -93,6 +93,9 @@ jobs:
       - name: Checkout source code
         uses: actions/checkout@v4
 
+      - name: Ensure deployment directory exists
+        run: mkdir -p deployment
+
       - name: Download build artifact
         uses: actions/download-artifact@v4
         with:
@@ -100,15 +103,12 @@ jobs:
           path: artifacts
 
       - name: Extract deployment artifact
-        run: |
-          mkdir -p deployment
-          tar -xzf artifacts/${{ github.sha }}.tar.gz -C deployment
+        run: tar -xzf artifacts/${{ github.sha }}.tar.gz -C deployment
 
       - name: Install jq
         run: sudo apt-get install -y jq
 
       - name: Read deployment config
-        id: config
         run: |
           DEPLOYMENT_CONFIG=$(cat deployment-config.json)
           echo "APPLICATION_NAME=$(echo $DEPLOYMENT_CONFIG | jq -r '.application_name')" >> $GITHUB_ENV
