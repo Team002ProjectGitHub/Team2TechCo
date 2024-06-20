@@ -1,6 +1,6 @@
 [{
     "name": "server-1", 
-    "ip": "34.234.89.76",
+    "ip": "172.31.43.41",
     "username": "ubuntu",
     "port": "22",
     "beforeHooks": "",
