@@ -95,7 +95,7 @@ jobs:
       - name: Setup SSH Key
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.TEAM_KEY_PAIR }}" > ~/.ssh/id_rsa
+          echo "${{ secrets.ACCESSKEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -H ${{ secrets.HOST_IP }} >> ~/.ssh/known_hosts
 
