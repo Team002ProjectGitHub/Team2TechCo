@@ -100,5 +100,5 @@ jobs:
 
       - name: Deploy to Server
         run: |
-          scp -i ~/.ssh/id_rsa ./artifact/${{ github.sha }}.tar.gz ubuntu@${{ secrets.HOST_IP }}:/path/to/deployment
+          scp -i ~/.ssh/id_rsa ./artifact/${{ github.sha }}.tar.gz ubuntu@${{ secrets.HOST_IP }}:/var/www/html
           ssh -i ~/.ssh/id_rsa ubuntu@${{ secrets.HOST_IP }} 'tar xzf /var/www/html ${{ github.sha }}.tar.gz -C /path/to/target_directory'
