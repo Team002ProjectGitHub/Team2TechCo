@@ -4,7 +4,7 @@ run-name: ${{ github.actor }} is testing out GitHub Actions
 on:
   push:
     branches:
-      - Karami
+      - Kunle
 
 jobs:
   build:
@@ -16,36 +16,34 @@ jobs:
           echo "🎉 The job was automatically triggered by a ${{ github.event_name }} event."
           echo "🐧 This job is now running on a ${{ runner.os }} server hosted by GitHub!"
           echo "🔎 The name of your branch is ${{ github.ref }} and your repository is ${{ github.repository }}."
-
+      
       - name: Check out repository code
         uses: actions/checkout@v4
 
       - name: Setup .NET Core
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v2
         with:
           dotnet-version: '8.0.x'
 
       - name: Restore dependencies
         run: dotnet restore
-
-      - name: Build
-        run: dotnet build --no-restore --configuration Release
-
-      - name: Publish application
-        run: |
-          mkdir -p deployment
-          dotnet publish -c Release -o deployment
+      
+      - name: Publish the application
+        run: dotnet publish --no-restore --configuration Release --output ./publish
 
       - name: Create deployment artifact
+        env:
+          GITHUB_SHA: ${{ github.sha }}
         run: |
-          mkdir -p artifacts
-          tar -czf "artifacts/${{ github.sha }}.tar.gz" -C deployment .
+          mkdir -p artifact
+          cp -r ./publish/* artifact/
+          tar -czf "${GITHUB_SHA}.tar.gz" -C artifact .
 
       - name: Store artifact for deployment
         uses: actions/upload-artifact@v4
         with:
           name: app-build
-          path: artifacts/${{ github.sha }}.tar.gz
+          path: ${{ github.sha }}.tar.gz
 
   unit-tests:
     name: Run Unit Tests
@@ -59,7 +57,7 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
-
+          
       - name: Restore dependencies
         run: dotnet restore
 
@@ -91,46 +89,16 @@ jobs:
     needs: integration-tests
     steps:
       - name: Checkout source code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v2
 
-      - name: Ensure deployment directory exists
-        run: mkdir -p deployment
-
-      - name: Download build artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: app-build
-          path: artifacts
-
-      - name: Extract deployment artifact
-        run: tar -xzf artifacts/${{ github.sha }}.tar.gz -C deployment
-
-      - name: Install jq
-        run: sudo apt-get install -y jq
-
-      - name: Set up version label
-        id: vars
-        run: echo "VERSION_LABEL=new-version-$(date +%Y%m%d%H%M%S)" >> $GITHUB_ENV
-
-      - name: Read deployment config
+      - name: Setup SSH Key
         run: |
-          DEPLOYMENT_CONFIG=$(cat deployment-config.json)
-          echo "APPLICATION_NAME=$(echo $DEPLOYMENT_CONFIG | jq -r '.application_name')" >> $GITHUB_ENV
-          echo "ENVIRONMENT_NAME=$(echo $DEPLOYMENT_CONFIG | jq -r '.environment_name')" >> $GITHUB_ENV
-          echo "REGION=$(echo $DEPLOYMENT_CONFIG | jq -r '.region')" >> $GITHUB_ENV
-          echo "DEPLOYMENT_PACKAGE=$(echo $DEPLOYMENT_CONFIG | jq -r '.deployment_package')" >> $GITHUB_ENV
-          echo "WAIT_FOR_DEPLOYMENT=$(echo $DEPLOYMENT_CONFIG | jq -r '.wait_for_deployment')" >> $GITHUB_ENV
-          echo "USE_EXISTING_VERSION_IF_AVAILABLE=$(echo $DEPLOYMENT_CONFIG | jq -r '.use_existing_version_if_available')" >> $GITHUB_ENV
+          mkdir -p ~/.ssh
+          echo "${{ secrets.TEAM_KEY_PAIR }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ secrets.HOST_IP }} >> ~/.ssh/known_hosts
 
-      - name: Deploy to Elastic Beanstalk
-        uses: einaregilsson/beanstalk-deploy@v22
-        with:
-          aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          application_name: ${{ env.APPLICATION_NAME }}
-          environment_name: ${{ env.ENVIRONMENT_NAME }}
-          version_label: ${{ env.VERSION_LABEL }}
-          region: ${{ env.REGION }}
-          wait_for_deployment: ${{ env.WAIT_FOR_DEPLOYMENT }}
-          deployment_package: artifacts/${{ github.sha }}.tar.gz
-          use_existing_version_if_available: ${{ env.USE_EXISTING_VERSION_IF_AVAILABLE }}
+      - name: Deploy to Server
+        run: |
+          scp -i ~/.ssh/id_rsa ./artifact/254df9f12f0ed5451955b5713ea76c4ac8cdf0c8.tar.gz ubuntu@18.233.205.97:/var/www/html
+          ssh -i ~/.ssh/id_rsa ubuntu@18.233.205.97 'tar -xzf /var/www/html/254df9f12f0ed5451955b5713ea76c4ac8cdf0c8.tar.gz -C /var/www/html'

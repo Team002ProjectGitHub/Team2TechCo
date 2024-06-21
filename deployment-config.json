@@ -1,8 +1,9 @@
-{
-  "application_name": "TeamTwo-UI",
-  "environment_name": "TeamTwo-UI-env",
-  "region": "us-east-1",
-  "deployment_package": "artifacts/${{ github.sha }}.tar.gz",
-  "wait_for_deployment": true,
-  "use_existing_version_if_available": true
-}
+[{
+    "name": "server-1", 
+    "ip": "18.233.205.97",
+    "username": "ubuntu",
+    "port": "22",
+    "beforeHooks": "",
+    "afterhooks": "",
+    "path": "var/www/html"
+}]
